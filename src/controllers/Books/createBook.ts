@@ -3,8 +3,8 @@ import fs from 'fs/promises';
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import cloudinaryModule from 'cloudinary';
-import { uploadToMega } from '../../utils/megaUploader';
-import Libro  from '../../data/mysql/models/Libro'; // Asegúrate de importar tu modelo correctamente
+import { uploadToDropbox } from '../../utils/dropboxUploader';
+import Libro from '../../data/mysql/models/Libro'; // Asegúrate de importar tu modelo correctamente
 import Area from '../../data/mysql/models/Area';
 import Semestre from '../../data/mysql/models/Semestre';
 import Materia from '../../data/mysql/models/Materia';
@@ -13,20 +13,21 @@ const cloudinary = cloudinaryModule.v2;
 
 // Configuración de Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME as string,
-  api_key: process.env.CLOUDINARY_API_KEY as string,
-  api_secret: process.env.CLOUDINARY_API_SECRET as string,
-  secure: true
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME as string,
+    api_key: process.env.CLOUDINARY_API_KEY as string,
+    api_secret: process.env.CLOUDINARY_API_SECRET as string,
+    secure: true
 });
 
 async function uploadToCloudinary(file: Express.Multer.File): Promise<string> {
-  const result = await cloudinary.uploader.upload(file.path, {
-    folder: 'portadas',
-    use_filename: true,
-    unique_filename: false
-  });
-  return result.secure_url;
+    const result = await cloudinary.uploader.upload(file.path, {
+        folder: 'portadas',
+        use_filename: true,
+        unique_filename: false
+    });
+    return result.secure_url;
 }
+
 
 export const createBook = async (req: Request, res: Response) => {
     try {
@@ -60,48 +61,39 @@ export const createBook = async (req: Request, res: Response) => {
         let archivoUrl = '';
         let portadaUrl = '';
 
-        // Verificar si los archivos están presentes
-        if (files) {
-            // Verificar y procesar el archivo del libro (archivo)
-            if (files.archivo && files.archivo[0]) {
-                const file = files.archivo[0];
-                const fileExtension = path.extname(file.originalname).toLowerCase();
-                const allowedDocExtensions = ['.pdf', '.docx'];
-
-                if (!allowedDocExtensions.includes(fileExtension)) {
-                    await fs.unlink(file.path);  // Eliminar el archivo no permitido
-                    return res.status(400).json({ message: 'El archivo debe ser .pdf o .docx' });
-                }
-                archivoUrl = await uploadToMega(file.path, file.originalname);
-            } else {
-                return res.status(400).json({ message: 'El archivo del libro es obligatorio.' });
-            }
-
-            // Verificar y procesar la portada del libro (imagen)
-            if (files.portada && files.portada[0]) {
-                const portadaFile = files.portada[0];
-                const portadaExtension = path.extname(portadaFile.originalname).toLowerCase();
-                const allowedImageExtensions = ['.jpg', '.jpeg', '.png'];
-
-                if (!allowedImageExtensions.includes(portadaExtension)) {
-                    await fs.unlink(portadaFile.path);  // Eliminar la portada no permitida
-                    return res.status(400).json({ message: 'La portada debe ser una imagen (.jpg, .jpeg, .png)' });
-                }
-                portadaUrl = await uploadToCloudinary(portadaFile);
-            } else {
-                return res.status(400).json({ message: 'La portada del libro es obligatoria.' });
-            }
-        } else {
-            return res.status(400).json({ message: 'Se deben subir los archivos de portada y libro.' });
+        if (!files?.archivo?.[0] || !files?.portada?.[0]) {
+            return res.status(400).json({ message: 'Se deben subir los archivos de libro y portada.' });
         }
+
+        const archivo = files.archivo[0]
+        const portada = files.portada[0]
+
+        const docExt = path.extname(archivo.originalname).toLowerCase();
+        if (!['.pdf', '.docx'].includes(docExt)) {
+            await fs.unlink(archivo.path);
+            return res.status(400).json({ message: 'El archivo debe ser .pdf o .docx' });
+        }
+
+        console.log('Subiendo archivo a Dropbox...');
+        archivoUrl = await uploadToDropbox(archivo.path, archivo.originalname);
+        const imageExt = path.extname(portada.originalname).toLowerCase();
+        if (!['.jpg', '.jpeg', '.png'].includes(imageExt)) {
+            await fs.unlink(portada.path);
+            return res.status(400).json({ message: 'La portada debe ser .jpg, .jpeg o .png' });
+        }
+
+        console.log('Subiendo portada a Cloudinary...');
+        portadaUrl = await uploadToCloudinary(portada);
+
+
 
         // Crear el libro en la base de datos
         const libro = await Libro.create({
             nombreLibro,
             descripcion,
             autor,
-            archivoUrl,
-            portadaUrl,
+            archivoUrl: archivoUrl,
+            portadaUrl: portadaUrl,
             fkIdArea: areaId,
             fkIdSemestre: semestreId,
             fkIdMateria: materiaId

@@ -7,7 +7,6 @@ import { updateBook } from '../../controllers/Books/updateBook';
 import { deleteBook } from '../../controllers/Books/deleteBook';
 import { searchBooks } from '../../controllers/Books/searchBooks';
 import upload from '../../middleware/upload';
-import { File } from 'megajs';
 
 const router = Router();
 router.post(

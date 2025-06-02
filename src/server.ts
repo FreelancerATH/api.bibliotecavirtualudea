@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import path from 'path';
 import morgan from 'morgan';
 import { AdminRoutes } from './routes/Administrador/AdminstradorRouter';
 import AuthAlumnoRoutes from './routes/AuthAlumno/AuthAlumnoRoutes';
@@ -11,7 +10,6 @@ import MateriaRoutes from './routes/Materia/MateriaRoutes';
 import BookRoutes from './routes/Book/BookRoutes';
 import AreaRoutes from './routes/Area/AreaRouter';
 import MatriculaRoutes from './routes/Matricula/MatriculaRouter';
-import pdfRoutes from './routes/pdfRoute';
 
 import { errorHandler } from './middleware/errorHandler';
 import { corsConfig } from './config/cors';
@@ -26,12 +24,6 @@ app.use(express.json()); // habilita el body parser para JSON
 app.use(express.urlencoded({ extended: true })); // habilita el body parser para formularios
 // Logger para mostrar todas las solicitudes
 app.use(morgan('dev'))  // <--- Esto imprimirá info de cada request en la terminal
-
-// Servir imágenes desde /uploads/portadas
-app.use('/portadas', express.static(path.join(__dirname, '../uploads/portadas')));
-
-app.use('/libros', express.static(path.join(__dirname, '../uploads/libros')));
-app.use('/api/pdf', pdfRoutes);
 
 
 // Rutas
