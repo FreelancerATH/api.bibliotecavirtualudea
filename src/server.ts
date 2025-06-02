@@ -11,6 +11,7 @@ import MateriaRoutes from './routes/Materia/MateriaRoutes';
 import BookRoutes from './routes/Book/BookRoutes';
 import AreaRoutes from './routes/Area/AreaRouter';
 import MatriculaRoutes from './routes/Matricula/MatriculaRouter';
+import pdfRoutes from './routes/pdfRoute';
 
 import { errorHandler } from './middleware/errorHandler';
 import { corsConfig } from './config/cors';
@@ -30,6 +31,7 @@ app.use(morgan('dev'))  // <--- Esto imprimirá info de cada request en la termi
 app.use('/portadas', express.static(path.join(__dirname, '../uploads/portadas')));
 
 app.use('/libros', express.static(path.join(__dirname, '../uploads/libros')));
+app.use('/api/pdf', pdfRoutes);
 
 
 // Rutas

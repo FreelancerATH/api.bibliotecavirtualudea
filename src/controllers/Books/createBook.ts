@@ -1,12 +1,32 @@
+import path from 'path';
+import fs from 'fs/promises';
 import { Request, Response } from 'express';
-import Libro from '../../data/mysql/models/Libro';
+import { validationResult } from 'express-validator';
+import cloudinaryModule from 'cloudinary';
+import { uploadToMega } from '../../utils/megaUploader';
+import Libro  from '../../data/mysql/models/Libro'; // Asegúrate de importar tu modelo correctamente
 import Area from '../../data/mysql/models/Area';
 import Semestre from '../../data/mysql/models/Semestre';
 import Materia from '../../data/mysql/models/Materia';
-import { validationResult } from 'express-validator';
-import path from 'path';
-import fs from 'fs/promises';
 
+const cloudinary = cloudinaryModule.v2;
+
+// Configuración de Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME as string,
+  api_key: process.env.CLOUDINARY_API_KEY as string,
+  api_secret: process.env.CLOUDINARY_API_SECRET as string,
+  secure: true
+});
+
+async function uploadToCloudinary(file: Express.Multer.File): Promise<string> {
+  const result = await cloudinary.uploader.upload(file.path, {
+    folder: 'portadas',
+    use_filename: true,
+    unique_filename: false
+  });
+  return result.secure_url;
+}
 
 export const createBook = async (req: Request, res: Response) => {
     try {
@@ -14,6 +34,7 @@ export const createBook = async (req: Request, res: Response) => {
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
         }
+
 
         const { nombreLibro, descripcion, autor, fkIdArea, fkIdSemestre, fkIdMateria } = req.body;
         const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -51,7 +72,7 @@ export const createBook = async (req: Request, res: Response) => {
                     await fs.unlink(file.path);  // Eliminar el archivo no permitido
                     return res.status(400).json({ message: 'El archivo debe ser .pdf o .docx' });
                 }
-                archivoUrl = `/libros/${file.filename}`;
+                archivoUrl = await uploadToMega(file.path, file.originalname);
             } else {
                 return res.status(400).json({ message: 'El archivo del libro es obligatorio.' });
             }
@@ -66,7 +87,7 @@ export const createBook = async (req: Request, res: Response) => {
                     await fs.unlink(portadaFile.path);  // Eliminar la portada no permitida
                     return res.status(400).json({ message: 'La portada debe ser una imagen (.jpg, .jpeg, .png)' });
                 }
-                portadaUrl = `/portadas/${portadaFile.filename}`;
+                portadaUrl = await uploadToCloudinary(portadaFile);
             } else {
                 return res.status(400).json({ message: 'La portada del libro es obligatoria.' });
             }
